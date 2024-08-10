@@ -8,7 +8,7 @@ Project to adds watermarks to pdf and png files using OpenCV
 - mutool\*
 
 
-#### \*Note: this project is solely intended for linux using mutool for all the pdf <-> png conversions however feel free to modify it to your liking to make it work on windows
+#### \*Note: this project is solely intended for linux using mutool for all the pdf <-> png conversions however feel free to modify it to your liking to make it work under win11
 
 
 
