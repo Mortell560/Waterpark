@@ -15,7 +15,7 @@ def preview_watermark(img: Image):
             ui.image(img).classes('max-w-full')
             ui.button('Close', on_click=lambda: dialog.close()).props('color=primary')
 
-def preview_pdf(imgs: list[Image]): # type: ignore
+def preview_pdf(imgs: list[Image]): # type: ignoretransparency
     with ui.dialog().props('full-width') as dialog:
         dialog.classes('max-w-3xl')
         dialog.open()
@@ -33,14 +33,14 @@ def handle_upload(e: events.UploadEventArguments):
     print(f"Uploaded file type: {e.type}")
     if e.type.startswith('image/'):
         image = Image.open(file)
-        watermarked = add_watermark(image, watermark_text=watermark_text.value, font_size=float(font_size.value) if font_size.value else None, color=color.value if color.value else "#CCCCCC")
+        watermarked = add_watermark(image, watermark_text=watermark_text.value, font_size=float(font_size.value) if font_size.value else None, color=color.value if color.value else "#CCCCCC", transparency=transparency.value)
         preview_watermark(watermarked) if preview.value else None
         bytes_img = io.BytesIO()
         watermarked.save(bytes_img, format='JPEG')
         watermarked = bytes_img.getvalue()
 
     elif e.type == 'application/pdf':
-        watermarked, images = add_watermark_to_pdf(file.read(), watermark_text=watermark_text.value, font_size=float(font_size.value) if font_size.value else None, color=color.value if color.value else "#CCCCCC")
+        watermarked, images = add_watermark_to_pdf(file.read(), watermark_text=watermark_text.value, font_size=float(font_size.value) if font_size.value else None, color=color.value if color.value else "#CCCCCC", transparency=transparency.value)
         print(len(images), "pages processed")
         preview_pdf(images) if preview.value else None
         watermarked = bytes(watermarked.output())
@@ -58,6 +58,8 @@ ui.upload(on_upload=handle_upload, multiple=True, max_total_size=1 << 30).props(
 
 watermark_text = ui.input('Watermark Text', placeholder='Enter watermark text here', value='Sample Watermark').props('clearable').classes('w-full')
 font_size = ui.input('Font Size', value=None).props('clearable').classes('w-full')
+ui.label('Transparency (0 to 1)').classes('text-sm')
+transparency = ui.slider(value=0.5, min=0, max=1, step=0.01).props('color=primary').classes('w-full')
 color = ui.color_input('Watermark Color', value='#CCCCCC').props('clearable').classes('w-full')
 preview = ui.checkbox('Preview Watermark', value=True).props('checked').classes('w-full')
 
