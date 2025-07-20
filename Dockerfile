@@ -7,7 +7,7 @@ ENV PORT=8080
 ENV RELOAD=false
 ENV HOST="0.0.0.0"
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && apk add --no-cache poppler
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && apk add --no-cache poppler poppler-utils
 
 USER appuser
 
