@@ -3,6 +3,10 @@ from nicegui import events, ui
 from lib.watermark import add_watermark_to_pdf, add_watermark
 from PIL import Image, ImageDraw, ImageFont
 from fpdf import FPDF
+from starlette.formparsers import MultiPartParser
+
+MultiPartParser.spool_max_size = 1 << 26
+
 with ui.header():
     ui.label('Waterpark').classes('text-2xl')
 
