@@ -1,0 +1,9 @@
+services:
+  watermark:
+    build: .
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - RELOAD=false
+    ports:
+      - "8080:8080"

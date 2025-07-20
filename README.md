@@ -1,14 +1,17 @@
 # Waterpark
-Project to adds watermarks to pdf and png files using OpenCV
+Project to adds watermarks to pdf and png files
 
 
 ## Requirements
-- OpenCV 4.X.X
-- Python
-- mutool\*
+- Docker
 
+## Launch the app
+if you are building it from source:
+```bash
+docker compose up -d
+```
 
-#### \*Note: this project is solely intended for linux using mutool for all the pdf <-> png conversions however feel free to modify it to your liking to make it work under win11
+otherwise pull the image from registry.
 
 
 

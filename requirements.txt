@@ -1,0 +1,4 @@
+pillow
+pdf2image
+fpdf2
+nicegui
