@@ -2,3 +2,9 @@ pillow
 pdf2image
 fpdf2
 nicegui
+pyHanko
+pikepdf
+pyzbar
+numpy
+piexif
+click
