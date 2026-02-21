@@ -619,6 +619,21 @@ class BOPdfDocumentTemplate:
                 ca_chain_files=None
             )
 
+            # If certifying, ensure proper certification permissions are set
+            if metadata.certify:
+                from pyhanko.sign.fields import MDPPerm
+                # Set to allow form filling and annotations (level 2)
+                # You can change to MDPPerm.NO_CHANGES (level 1) or MDPPerm.ANNOTATE (level 3)
+                if metadata.docmdp_permissions is None:
+                    metadata = signers.PdfSignatureMetadata(
+                        field_name=metadata.field_name,
+                        certify=True,
+                        docmdp_permissions=MDPPerm.FILL_FORMS,  # Level 2: allow form filling
+                        location=metadata.location,
+                        reason=metadata.reason,
+                        name=metadata.name,
+                    )
+
             # Sign the PDF
             signed_out = io.BytesIO()
             signers.sign_pdf(
