@@ -669,14 +669,23 @@ class BOPdfDocumentTemplate:
             signed_pdf.seek(0)
             reader = PdfFileReader(signed_pdf)
             
-            # Get all signature fields
-            sig_fields = reader.root.get('/AcroForm', {}).get('/Fields', [])
+            # Count signature fields more safely
             signature_count = 0
-            
-            for field_ref in sig_fields:
-                field = field_ref.get_object() if hasattr(field_ref, 'get_object') else field_ref
-                if field.get('/FT') == '/Sig':
-                    signature_count += 1
+            try:
+                if '/AcroForm' in reader.root:
+                    acro_form = reader.root['/AcroForm']
+                    if '/Fields' in acro_form:
+                        fields = acro_form['/Fields']
+                        for field_ref in fields:
+                            try:
+                                # Dereference if needed
+                                field = field_ref.get_object() if hasattr(field_ref, 'get_object') else field_ref
+                                if '/FT' in field and field['/FT'] == '/Sig':
+                                    signature_count += 1
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.debug(f"[SIGNATURE_VALIDATION] Error counting fields: {e}")
             
             logger.info(f"[SIGNATURE_VALIDATION] Total signature fields found: {signature_count}")
             
