@@ -13,6 +13,7 @@ import random
 from pyhanko.sign import signers
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.pdf_utils.reader import PdfFileReader
+from pyhanko.sign.validation import validate_pdf_signature
 from pypdf import PdfReader, PdfWriter
 
 logger = logging.getLogger(__name__)
@@ -609,8 +610,8 @@ class BOPdfDocumentTemplate:
             writer.write(sanitized_pdf)
             sanitized_pdf.seek(0)
 
-            # Use pyhanko's reader on the clean PDF
-            pdf_reader = PdfFileReader(sanitized_pdf)
+            # Now use IncrementalPdfFileWriter for signing
+            incremental_writer = IncrementalPdfFileWriter(sanitized_pdf)
             
             # Create signer with cert and key
             signer = signers.SimpleSigner.load(
@@ -634,23 +635,89 @@ class BOPdfDocumentTemplate:
                         name=metadata.name,
                     )
 
-            # Sign the PDF using PdfSigner
-            from pyhanko.sign import PdfSigner
-            
-            pdf_signer = PdfSigner(
+            # Sign the PDF - use existing_fields_only=False to create a new field
+            signed_out = io.BytesIO()
+            signers.sign_pdf(
+                incremental_writer,
                 signature_meta=metadata,
                 signer=signer,
+                existing_fields_only=False,  # Explicitly create new signature field
+                output=signed_out
             )
-            
-            # Sign the PDF
-            signed_out = io.BytesIO()
-            pdf_signer.sign_pdf(pdf_reader, output=signed_out)
             signed_out.seek(0)
+            
+            # Validate the signature
+            validation_info = self._validate_signature(signed_out)
+            logger.info(f"[SIGNATURE_VALIDATION] Validation complete: {validation_info}")
             
             return signed_out
         except Exception as e:
             logger.error(f"Error signing PDF: {e}")
             raise RuntimeError(f"Unable to sign PDF: {e}")
+    
+    def _validate_signature(self, signed_pdf: io.BytesIO) -> dict:
+        """
+        Validate the signatures in a signed PDF.
+        
+        Args:
+            signed_pdf: BytesIO containing signed PDF
+            
+        Returns:
+            Dictionary with validation information
+        """
+        try:
+            signed_pdf.seek(0)
+            reader = PdfFileReader(signed_pdf)
+            
+            # Get all signature fields
+            sig_fields = reader.root.get('/AcroForm', {}).get('/Fields', [])
+            signature_count = 0
+            
+            for field_ref in sig_fields:
+                field = field_ref.get_object() if hasattr(field_ref, 'get_object') else field_ref
+                if field.get('/FT') == '/Sig':
+                    signature_count += 1
+            
+            logger.info(f"[SIGNATURE_VALIDATION] Total signature fields found: {signature_count}")
+            
+            validation_results = []
+            
+            # Validate each embedded signature
+            for sig_field in reader.embedded_signatures:
+                logger.info(f"[SIGNATURE_VALIDATION] Validating signature field: {sig_field.field_name}")
+                
+                validation_result = validate_pdf_signature(sig_field)
+                
+                result_info = {
+                    'field_name': sig_field.field_name,
+                    'valid': validation_result.bottom_line,
+                    'signer': validation_result.signer_reported,
+                    'intact': validation_result.intact,
+                    'modified': validation_result.modified,
+                }
+                validation_results.append(result_info)
+                
+                logger.info(f"[SIGNATURE_VALIDATION] Signature valid: {validation_result.bottom_line}")
+                logger.info(f"[SIGNATURE_VALIDATION] Signer name: {validation_result.signer_reported}")
+                logger.info(f"[SIGNATURE_VALIDATION] Signature intact: {validation_result.intact}")
+                logger.info(f"[SIGNATURE_VALIDATION] Document modified: {validation_result.modified}")
+                
+                if not validation_result.bottom_line:
+                    logger.warning(f"[SIGNATURE_VALIDATION] Signature validation failed: {validation_result.summary()}")
+            
+            # Reset position for further reading
+            signed_pdf.seek(0)
+            
+            return {
+                'signature_count': signature_count,
+                'validated_signatures': validation_results
+            }
+            
+        except Exception as e:
+            logger.warning(f"[SIGNATURE_VALIDATION] Could not validate signature: {e}")
+            # Don't raise - validation is informational
+            signed_pdf.seek(0)
+            return {'signature_count': 0, 'validated_signatures': [], 'error': str(e)}
 
 
 # Example usage

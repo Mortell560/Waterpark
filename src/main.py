@@ -1,11 +1,18 @@
 import asyncio
 import io
 import os
+import logging
 from nicegui import events, ui
 from pyhanko.sign import signers
 from starlette.formparsers import MultiPartParser
 
 from lib.watermark import BOPdfDocumentTemplate, FileInputStream, WatermarkParameters
+
+# Configure logging to see signature validation output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 MultiPartParser.spool_max_size = 1 << 26
 
