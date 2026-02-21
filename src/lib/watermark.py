@@ -635,7 +635,6 @@ class BOPdfDocumentTemplate:
                     )
 
             # Sign the PDF using PdfSigner
-            signed_out = io.BytesIO()
             from pyhanko.sign import PdfSigner
             
             pdf_signer = PdfSigner(
@@ -643,10 +642,9 @@ class BOPdfDocumentTemplate:
                 signer=signer,
             )
             
-            # Sign with new_field_spec to ensure clean signature field creation
-            with pdf_signer.init_signing_context(pdf_reader, existing_fields_only=False) as sig_field_ctx:
-                sig_field_ctx.sign(output=signed_out)
-            
+            # Sign the PDF
+            signed_out = io.BytesIO()
+            pdf_signer.sign_pdf(pdf_reader, output=signed_out)
             signed_out.seek(0)
             
             return signed_out
