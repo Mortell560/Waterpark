@@ -595,23 +595,22 @@ class BOPdfDocumentTemplate:
             pdf_buffer.seek(0)
 
             # Normalize PDFs to avoid invalid xref/object generations
-            # Use specific save options to avoid creating signature artifacts
+            # Completely remove any form-related structures to avoid signature artifacts
             sanitized_pdf = io.BytesIO()
             with pikepdf.open(pdf_buffer) as pdf:
-                # Remove any existing signature fields to avoid conflicts
+                # Completely remove AcroForm if it exists
                 if '/AcroForm' in pdf.Root:
-                    acroform = pdf.Root.AcroForm
-                    if '/Fields' in acroform:
-                        # Filter out any signature fields
-                        fields = acroform.Fields
-                        non_sig_fields = [f for f in fields if '/FT' in f and f.FT != '/Sig']
-                        if non_sig_fields:
-                            acroform.Fields = non_sig_fields
-                        else:
-                            # No fields left, remove AcroForm
-                            del pdf.Root.AcroForm
+                    del pdf.Root.AcroForm
                 
-                pdf.save(sanitized_pdf, linearize=False)
+                # Remove any annotations that might contain signature widgets
+                for page in pdf.pages:
+                    if '/Annots' in page:
+                        del page.Annots
+                
+                # Save with minimal processing to avoid creating artifacts
+                pdf.save(sanitized_pdf, 
+                        linearize=False,
+                        object_stream_mode=pikepdf.ObjectStreamMode.disable)
             sanitized_pdf.seek(0)
 
             writer = IncrementalPdfFileWriter(sanitized_pdf)
