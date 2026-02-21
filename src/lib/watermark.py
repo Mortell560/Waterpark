@@ -12,6 +12,7 @@ import numpy as np
 import random
 from pyhanko.sign import signers
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.pdf_utils.reader import PdfFileReader
 from pypdf import PdfReader, PdfWriter
 
 logger = logging.getLogger(__name__)
@@ -595,7 +596,7 @@ class BOPdfDocumentTemplate:
             pdf_buffer.seek(0)
 
             # Normalize PDFs to avoid invalid xref/object generations
-            # Use pypdf to rebuild the PDF without creating signature artifacts
+            # Use pypdf to rebuild the PDF cleanly
             reader = PdfReader(pdf_buffer)
             writer = PdfWriter()
             
@@ -608,9 +609,9 @@ class BOPdfDocumentTemplate:
             writer.write(sanitized_pdf)
             sanitized_pdf.seek(0)
 
-            # Now sign the sanitized PDF
-            incremental_writer = IncrementalPdfFileWriter(sanitized_pdf)
-
+            # Use pyhanko's reader on the clean PDF
+            pdf_reader = PdfFileReader(sanitized_pdf)
+            
             # Create signer with cert and key
             signer = signers.SimpleSigner.load(
                 key_path,
@@ -623,7 +624,6 @@ class BOPdfDocumentTemplate:
             if metadata.certify:
                 from pyhanko.sign.fields import MDPPerm
                 # Set to allow form filling and annotations (level 2)
-                # You can change to MDPPerm.NO_CHANGES (level 1) or MDPPerm.ANNOTATE (level 3)
                 if metadata.docmdp_permissions is None:
                     metadata = signers.PdfSignatureMetadata(
                         field_name=metadata.field_name,
@@ -634,14 +634,19 @@ class BOPdfDocumentTemplate:
                         name=metadata.name,
                     )
 
-            # Sign the PDF
+            # Sign the PDF using PdfSigner
             signed_out = io.BytesIO()
-            signers.sign_pdf(
-                incremental_writer,
+            from pyhanko.sign import PdfSigner
+            
+            pdf_signer = PdfSigner(
                 signature_meta=metadata,
                 signer=signer,
-                output=signed_out
             )
+            
+            # Sign with new_field_spec to ensure clean signature field creation
+            with pdf_signer.init_signing_context(pdf_reader, existing_fields_only=False) as sig_field_ctx:
+                sig_field_ctx.sign(output=signed_out)
+            
             signed_out.seek(0)
             
             return signed_out
