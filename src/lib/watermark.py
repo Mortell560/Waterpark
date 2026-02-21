@@ -12,7 +12,6 @@ import numpy as np
 import random
 from pyhanko.sign import signers
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-import pikepdf
 
 logger = logging.getLogger(__name__)
 
@@ -594,13 +593,7 @@ class BOPdfDocumentTemplate:
         try:
             pdf_buffer.seek(0)
 
-            # Normalize PDFs to avoid invalid xref/object generations
-            sanitized_pdf = io.BytesIO()
-            with pikepdf.open(pdf_buffer) as pdf:
-                pdf.save(sanitized_pdf)
-            sanitized_pdf.seek(0)
-
-            writer = IncrementalPdfFileWriter(sanitized_pdf)
+            writer = IncrementalPdfFileWriter(pdf_buffer)
 
             # Create signer with cert and key
             signer = signers.SimpleSigner.load(
