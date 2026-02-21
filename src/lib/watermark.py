@@ -2,6 +2,7 @@ import asyncio
 import io
 import math
 import logging
+from pathlib import Path
 from typing import List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from pdf2image import convert_from_bytes
@@ -300,10 +301,7 @@ class BOPdfDocumentTemplate:
             
             # Calculate font size based on image width
             font_size = max(12, int(self.watermark_params.font_size_base * width / self.params.max_page.width))
-            try:
-                font = ImageFont.truetype(self.watermark_params.font_name, font_size)
-            except Exception:
-                font = ImageFont.load_default()
+            font = self._load_font(font_size)
             
             # Get random opacity for main watermark layer
             main_opacity = random.uniform(*self.watermark_params.opacity_range)
@@ -401,6 +399,24 @@ class BOPdfDocumentTemplate:
         except Exception as e:
             logger.exception("Error applying watermark")
             raise RuntimeError(f"Unable to apply watermark: {e}")
+
+    def _load_font(self, font_size: int) -> ImageFont.ImageFont:
+        """
+        Load a TrueType font; fall back to a bundled font for clarity.
+        """
+        try:
+            font_path = Path(__file__).resolve().parents[1] / "fonts" / "Arial.ttf"
+            if font_path.exists():
+                return ImageFont.truetype(str(font_path), font_size)
+        except Exception:
+            pass
+        try:
+            return ImageFont.truetype(self.watermark_params.font_name, font_size)
+        except Exception:
+            try:
+                return ImageFont.truetype("DejaVuSans.ttf", font_size)
+            except Exception:
+                return ImageFont.load_default()
     
     def _apply_watermark_recursive_call(self, image: Image.Image, watermark_text: str) -> Image.Image:
         return self._apply_watermark_sync(image, watermark_text)
