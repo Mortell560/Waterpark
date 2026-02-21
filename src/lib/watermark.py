@@ -12,7 +12,7 @@ import numpy as np
 import random
 from pyhanko.sign import signers
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-import pikepdf
+from pypdf import PdfReader, PdfWriter
 
 logger = logging.getLogger(__name__)
 
@@ -595,25 +595,21 @@ class BOPdfDocumentTemplate:
             pdf_buffer.seek(0)
 
             # Normalize PDFs to avoid invalid xref/object generations
-            # Completely remove any form-related structures to avoid signature artifacts
+            # Use pypdf to rebuild the PDF without creating signature artifacts
+            reader = PdfReader(pdf_buffer)
+            writer = PdfWriter()
+            
+            # Copy all pages to the writer
+            for page in reader.pages:
+                writer.add_page(page)
+            
+            # Write to a clean buffer
             sanitized_pdf = io.BytesIO()
-            with pikepdf.open(pdf_buffer) as pdf:
-                # Completely remove AcroForm if it exists
-                if '/AcroForm' in pdf.Root:
-                    del pdf.Root.AcroForm
-                
-                # Remove any annotations that might contain signature widgets
-                for page in pdf.pages:
-                    if '/Annots' in page:
-                        del page.Annots
-                
-                # Save with minimal processing to avoid creating artifacts
-                pdf.save(sanitized_pdf, 
-                        linearize=False,
-                        object_stream_mode=pikepdf.ObjectStreamMode.disable)
+            writer.write(sanitized_pdf)
             sanitized_pdf.seek(0)
 
-            writer = IncrementalPdfFileWriter(sanitized_pdf)
+            # Now sign the sanitized PDF
+            incremental_writer = IncrementalPdfFileWriter(sanitized_pdf)
 
             # Create signer with cert and key
             signer = signers.SimpleSigner.load(
@@ -626,7 +622,7 @@ class BOPdfDocumentTemplate:
             # Sign the PDF
             signed_out = io.BytesIO()
             signers.sign_pdf(
-                writer,
+                incremental_writer,
                 signature_meta=metadata,
                 signer=signer,
                 output=signed_out
